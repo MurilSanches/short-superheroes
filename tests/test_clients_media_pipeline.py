@@ -109,8 +109,9 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(len(stories), 4)
         self.assertEqual([story.video_id for story in stories], ["video-01", "video-02", "video-03", "video-04"])
         for story in stories:
-            self.assertGreaterEqual(story.target_duration_sec, 45)
-            self.assertLessEqual(story.target_duration_sec, 60)
+            self.assertGreaterEqual(story.target_duration_sec, 60)
+            self.assertLessEqual(story.target_duration_sec, 75)
+            self.assertGreaterEqual(len(story.script), 900)
             self.assertEqual(len(story.scenes), 6)
             self.assertTrue(story.hero_name)
             self.assertTrue(story.tiktok_title)
@@ -250,6 +251,10 @@ class MediaTests(unittest.TestCase):
         command_text = " ".join(str(part) for part in command)
         self.assertIn("ffmpeg", command[0])
         self.assertIn("1080:1920", command_text)
+        self.assertIn("loudnorm=I=-16:TP=-1.5:LRA=11", command_text)
+        self.assertIn("-ac 2", command_text)
+        self.assertIn("-ar 48000", command_text)
+        self.assertIn("-b:a 192k", command_text)
         self.assertIn("final.mp4", command_text)
 
     def test_render_video_dry_run_writes_manifest_instead_of_calling_ffmpeg(self):
@@ -261,11 +266,27 @@ class MediaTests(unittest.TestCase):
 
 
 def pipeline_story(video_id: str = "video-01") -> StoryPackage:
+    script = (
+        "Pebble Pulse noticed a heavy glowing seed beside the garden path. "
+        "First, Pebble Pulse took a slow breath and asked every friend what they could do safely. "
+        "The tiny beetles offered to clear pebbles, the cloud birds brought soft shade, "
+        "and the flower twins marked a gentle path through the grass. "
+        "Pebble Pulse used calm rhythm waves, not to push anyone, but to help the team move together. "
+        "When the seed rolled a little too fast, the friends paused, listened, and made a kinder plan. "
+        "Step by step, they carried the seed to warm soil near the sunny fence. "
+        "By the end, the seed settled in, a little sprout waved hello, "
+        "and everyone learned that teamwork makes hard tasks feel lighter. "
+        "Pebble Pulse did not say the mission was easy; instead, the hero said it became possible because every helper mattered. "
+        "The beetles felt proud of their careful clearing, the birds felt proud of their cool shade, "
+        "and the flower twins felt proud that their path markers kept everyone calm. "
+        "That evening, the whole garden remembered the lesson whenever another friend needed help with something heavy, "
+        "because shared work, kind words, and patient listening had turned a hard moment into a bright team victory."
+    )
     return StoryPackage(
         video_id=video_id,
         hero_name="Pebble Pulse",
         moral="Teamwork makes hard tasks feel lighter.",
-        target_duration_sec=48,
+        target_duration_sec=66,
         character_bible=CharacterBible(
             appearance="A friendly original hero with pebble buttons and a green scarf.",
             color_palette=["green", "cream", "silver"],
@@ -275,7 +296,7 @@ def pipeline_story(video_id: str = "video-01") -> StoryPackage:
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos"],
         ),
-        script="Pebble Pulse helped the garden friends move a heavy seed by sharing the work.",
+        script=script,
         scenes=[
             Scene("scene-01", 8, "Pebble Pulse sees a heavy seed.", "Original hero sees a heavy seed."),
             Scene("scene-02", 8, "Friends gather kindly.", "Garden friends gather around."),

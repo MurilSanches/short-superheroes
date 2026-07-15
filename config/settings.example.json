@@ -1,8 +1,8 @@
 {
   "project_root": "projects/shorts-superheroes",
   "video_count": 4,
-  "min_duration_sec": 45,
-  "max_duration_sec": 60,
+  "min_duration_sec": 60,
+  "max_duration_sec": 75,
   "min_scenes": 6,
   "max_scenes": 8,
   "language": "simple English",

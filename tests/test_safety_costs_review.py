@@ -8,12 +8,31 @@ from shorts_superheroes.review import build_review_markdown, write_story_files
 from shorts_superheroes.safety import validate_story_package
 
 
+def sixty_second_script() -> str:
+    return (
+        "Luma Leap woke up above the cozy cloud city library and saw a little door glowing softly. "
+        "Inside the door was a lost map that seemed nervous because no one had listened to it all morning. "
+        "Luma Leap called three friends, asked each one to share an idea, and promised that every voice would matter. "
+        "The first friend noticed a golden corner, the second friend found a tiny sunrise mark, "
+        "and the third friend remembered a quiet shelf where old maps liked to rest. "
+        "When the clues did not fit right away, Luma Leap told the truth and said they needed to slow down. "
+        "Together they matched the clues, followed a warm guiding light, and found the map's missing page. "
+        "The library doors opened with a gentle sparkle, and every friend felt proud because honest teamwork "
+        "helped them solve the mystery without rushing or leaving anyone out. "
+        "Before they went home, Luma Leap asked the friends to remember the best part of the day. "
+        "One friend said the best part was being heard, another said the best part was telling the truth, "
+        "and another said the best part was learning that a small clue can matter when the team is patient. "
+        "Luma Leap placed the map back on its shelf, where it glowed like a tiny sunrise, and the friends promised "
+        "to use the same honest teamwork the next time a problem felt confusing or too big."
+    )
+
+
 def sample_story(**overrides):
     data = {
         "video_id": "video-01",
         "hero_name": "Luma Leap",
         "moral": "Honesty helps friends solve problems.",
-        "target_duration_sec": 55,
+        "target_duration_sec": 65,
         "character_bible": CharacterBible(
             appearance="A small original hero with a teal cape and cloud boots.",
             color_palette=["teal", "gold", "white"],
@@ -23,7 +42,7 @@ def sample_story(**overrides):
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos"],
         ),
-        "script": "Luma Leap finds a lost map, tells the truth, and helps friends share clues.",
+        "script": sixty_second_script(),
         "scenes": [
             Scene("scene-01", 8, "Luma Leap finds a map.", "A soft storybook scene with an original hero."),
             Scene("scene-02", 8, "Friends share clues.", "Original cloud city friends in a library."),
@@ -57,6 +76,16 @@ class SafetyTests(unittest.TestCase):
         result = validate_story_package(story)
         self.assertFalse(result.ok)
         self.assertIn("scene_count_out_of_range", result.errors)
+
+    def test_rejects_story_shorter_than_sixty_seconds(self):
+        result = validate_story_package(sample_story(target_duration_sec=59))
+        self.assertFalse(result.ok)
+        self.assertIn("duration_out_of_range", result.errors)
+
+    def test_rejects_script_too_short_for_sixty_seconds(self):
+        result = validate_story_package(sample_story(script="Too short."))
+        self.assertFalse(result.ok)
+        self.assertIn("script_too_short_for_60_seconds", result.errors)
 
     def test_rejects_personal_data_call_to_action(self):
         story = sample_story(script="Tell me your age and school in the comments.")

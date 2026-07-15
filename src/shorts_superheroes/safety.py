@@ -45,6 +45,11 @@ UNSAFE_TERMS = [
     "political campaign",
 ]
 
+MIN_TARGET_DURATION_SEC = 60
+MAX_TARGET_DURATION_SEC = 75
+MIN_SCRIPT_CHARS_FOR_60_SECONDS = 900
+LONG_SCRIPT_WARNING_CHARS = 1800
+
 
 def _joined_story_text(story: StoryPackage) -> str:
     parts = [
@@ -73,12 +78,14 @@ def validate_story_package(story: StoryPackage) -> CheckResult:
 
     if len(story.scenes) < 6 or len(story.scenes) > 8:
         errors.append("scene_count_out_of_range")
-    if story.target_duration_sec < 45 or story.target_duration_sec > 60:
+    if story.target_duration_sec < MIN_TARGET_DURATION_SEC or story.target_duration_sec > MAX_TARGET_DURATION_SEC:
         errors.append("duration_out_of_range")
     if not story.hero_name.strip():
         errors.append("missing_hero_name")
     if not story.script.strip():
         errors.append("missing_script")
+    if story.script.strip() and len(story.script) < MIN_SCRIPT_CHARS_FOR_60_SECONDS:
+        errors.append("script_too_short_for_60_seconds")
 
     for term in KNOWN_IP_TERMS:
         if term in text:
@@ -91,9 +98,7 @@ def validate_story_package(story: StoryPackage) -> CheckResult:
         if term in text:
             errors.append(f"unsafe_term: {term}")
 
-    if len(story.script) < 500:
-        warnings.append("script_may_be_short_for_45_seconds")
-    if len(story.script) > 1200:
-        warnings.append("script_may_be_long_for_60_seconds")
+    if len(story.script) > LONG_SCRIPT_WARNING_CHARS:
+        warnings.append("script_may_be_long_for_75_seconds")
 
     return CheckResult(ok=len(errors) == 0, errors=errors, warnings=warnings)

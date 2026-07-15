@@ -233,7 +233,7 @@ def _story_response_format() -> dict:
             "video_id": {"type": "string"},
             "hero_name": {"type": "string"},
             "moral": {"type": "string"},
-            "target_duration_sec": {"type": "integer"},
+            "target_duration_sec": {"type": "integer", "minimum": 60, "maximum": 75},
             "character_bible": bible,
             "script": {"type": "string"},
             "scenes": {"type": "array", "items": scene},
@@ -272,7 +272,7 @@ def _dry_run_story(
     scenes = [
         Scene(
             scene_id=f"scene-{scene_index:02d}",
-            duration_sec=9,
+            duration_sec=11,
             narration=f"{hero_name} begins a small mission with a friend.",
             image_prompt=f"Original soft 3D storybook scene of {hero_name} on a kind mission.",
         )
@@ -282,7 +282,7 @@ def _dry_run_story(
         video_id=f"video-{index:02d}",
         hero_name=hero_name,
         moral=f"{moral.capitalize()} helps friends solve problems together.",
-        target_duration_sec=54,
+        target_duration_sec=66,
         character_bible=CharacterBible(
             appearance=f"An original young hero wearing {appearance}.",
             color_palette=["teal", "gold", "white"],
@@ -292,12 +292,22 @@ def _dry_run_story(
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos", "no known character designs"],
         ),
-        script=(
-            f"{hero_name} sees a friend with a small problem. {hero_name} listens, shares a kind idea, "
-            f"and uses {power} to help. The friends learn that {moral} makes every mission brighter."
-        ),
+        script=_dry_run_script(hero_name, moral, power),
         scenes=scenes,
         tiktok_title=f"{hero_name}'s Kind Mission",
         tiktok_description=f"A simple original hero story about {moral}.",
         hashtags=["#kidsstory", "#storytime", "#originalhero"],
+    )
+
+
+def _dry_run_script(hero_name: str, moral: str, power: str) -> str:
+    return (
+        f"{hero_name} was getting ready for a quiet morning when a soft bell rang across the cozy cloud city library. "
+        f"A young friend had found a problem that felt too big to solve alone, so {hero_name} flew over slowly and listened first. "
+        "Instead of rushing, the hero asked each friend what they noticed, what they felt, and what kind of help would feel safe. "
+        f"One friend pointed to a hidden path, another friend shared a careful idea, and {hero_name} used {power} to make the plan easy to follow. "
+        "The team tried one small step, then paused, smiled, and changed the plan when it needed to be kinder. "
+        "Soon every friend had a helpful job: one watched the path, one carried a tiny lantern, one encouraged the group, and one remembered the way home. "
+        f"When the mission was finished, {hero_name} thanked everyone by name and reminded them that {moral} works best when friends listen to each other. "
+        "The whole library glowed warmly, not because one hero did everything, but because the whole team shared courage, patience, and care."
     )

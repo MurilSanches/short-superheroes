@@ -27,7 +27,7 @@ def _sample_stories() -> list[StoryPackage]:
                 video_id=video_id,
                 hero_name=hero_name,
                 moral="Friends can solve problems when they listen to each other.",
-                target_duration_sec=48,
+                target_duration_sec=66,
                 character_bible=CharacterBible(
                     appearance=f"A friendly original hero named {hero_name} with a green scarf and glowing buttons.",
                     color_palette=["green", "gold", "white"],
@@ -38,17 +38,22 @@ def _sample_stories() -> list[StoryPackage]:
                     negative_restrictions=["no existing superhero logos", "no Marvel", "no DC"],
                 ),
                 script=(
-                    f"{hero_name} found a worried seed in the garden. The hero listened, gathered friends, "
-                    "and helped the seed feel safe enough to grow. Together they made a gentle plan, "
-                    "shared the work, and celebrated the first green sprout with kind words."
+                    f"{hero_name} found a worried seed in the garden just as the morning light touched the leaves. "
+                    "The tiny seed wanted to grow, but the wind felt loud, the soil felt cold, and every shadow seemed too big. "
+                    f"{hero_name} sat nearby, kept a gentle voice, and asked the garden friends to listen before anyone tried to fix the problem. "
+                    "A ladybug noticed the warmest patch of soil, a snail found a quiet path, and a sparrow brought a soft feather to make the seed feel safe. "
+                    "The hero made listening lights that glowed whenever someone shared a kind idea, and soon the whole garden could see the plan clearly. "
+                    "Together they moved one pebble, brushed one leaf, and made one cozy place where the seed could rest without feeling rushed. "
+                    "When a small sprout finally peeked out, everyone cheered softly, because they had learned that careful listening can turn a scary problem into shared work. "
+                    f"{hero_name} smiled and promised to return whenever a friend needed patience, teamwork, and a little light."
                 ),
                 scenes=[
-                    Scene("scene-01", 8, f"{hero_name} finds a worried seed.", f"Portrait soft 3D storybook scene of {hero_name} finding a worried seed."),
-                    Scene("scene-02", 8, "Friends gather kindly.", "Garden friends gather kindly around an original hero."),
-                    Scene("scene-03", 8, "A listening light appears.", "A warm listening light appears in a garden library."),
-                    Scene("scene-04", 8, "Everyone shares ideas.", "Friendly characters share ideas in a sunny garden."),
-                    Scene("scene-05", 8, "The seed settles into soil.", "A tiny seed settles into glowing soil."),
-                    Scene("scene-06", 8, "A sprout grows.", "A happy sprout grows while friends smile."),
+                    Scene("scene-01", 11, f"{hero_name} finds a worried seed.", f"Portrait soft 3D storybook scene of {hero_name} finding a worried seed."),
+                    Scene("scene-02", 11, "Friends gather kindly.", "Garden friends gather kindly around an original hero."),
+                    Scene("scene-03", 11, "A listening light appears.", "A warm listening light appears in a garden library."),
+                    Scene("scene-04", 11, "Everyone shares ideas.", "Friendly characters share ideas in a sunny garden."),
+                    Scene("scene-05", 11, "The seed settles into soil.", "A tiny seed settles into glowing soil."),
+                    Scene("scene-06", 11, "A sprout grows.", "A happy sprout grows while friends smile."),
                 ],
                 tiktok_title=f"{hero_name} and the Listening Light",
                 tiktok_description="A gentle original superhero story about listening.",
