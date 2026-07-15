@@ -1,0 +1,55 @@
+{
+  "name": "Shorts Superheroes - Render Final Videos",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 260]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "batch_dir", "value": "projects/shorts-superheroes/batches/2026-07-15-001" },
+            { "name": "worker_url", "value": "http://host.docker.internal:8765/run-stage" }
+          ],
+          "boolean": [
+            { "name": "dry_run", "value": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-config",
+      "name": "Set Batch Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [240, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.worker_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"stage\":\"render-batch\",\"batch_dir\":\"{{$json.batch_dir}}\",\"dry_run\":{{$json.dry_run}}}"
+      },
+      "id": "render-batch",
+      "name": "Render Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 260]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Set Batch Config", "type": "main", "index": 0 }]]
+    },
+    "Set Batch Config": {
+      "main": [[{ "node": "Render Batch", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

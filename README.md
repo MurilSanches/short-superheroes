@@ -52,5 +52,11 @@ Import the three JSON files through the n8n UI, or set `N8N_API_KEY` and run:
 ```powershell
 $env:N8N_URL="http://localhost:5678"
 $env:N8N_API_KEY=Read-Host "N8N API key"
+& "C:\Users\muril\AppData\Local\Programs\Python\Python310\python.exe" projects\shorts-superheroes\n8n-workflows\create-shorts-superheroes.py
+```
+
+If your shell is already inside the `projects/shorts-superheroes` repo, run:
+
+```powershell
 & "C:\Users\muril\AppData\Local\Programs\Python\Python310\python.exe" n8n-workflows\create-shorts-superheroes.py
 ```

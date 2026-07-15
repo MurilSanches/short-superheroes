@@ -1,0 +1,58 @@
+{
+  "name": "Shorts Superheroes - Draft Batch",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 260]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "batch_id", "value": "2026-07-15-001" },
+            { "name": "project_root", "value": "projects/shorts-superheroes" },
+            { "name": "theme_seed", "value": "kindness and teamwork" },
+            { "name": "image_model", "value": "gpt-image-1-mini" },
+            { "name": "worker_url", "value": "http://host.docker.internal:8765/run-stage" }
+          ],
+          "boolean": [
+            { "name": "dry_run", "value": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-config",
+      "name": "Set Draft Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [240, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.worker_url}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"stage\":\"draft-batch\",\"batch_id\":\"{{$json.batch_id}}\",\"project_root\":\"{{$json.project_root}}\",\"theme_seed\":\"{{$json.theme_seed}}\",\"image_model\":\"{{$json.image_model}}\",\"dry_run\":{{$json.dry_run}}}"
+      },
+      "id": "draft-batch",
+      "name": "Draft Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 260]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Set Draft Config", "type": "main", "index": 0 }]]
+    },
+    "Set Draft Config": {
+      "main": [[{ "node": "Draft Batch", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}
