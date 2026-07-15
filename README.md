@@ -16,6 +16,15 @@ Set `PYTHONPATH` when running from the vault root:
 $env:PYTHONPATH="projects\shorts-superheroes\src"
 ```
 
+Create a local `.env` file from `.env.example` for real API runs:
+
+```powershell
+Copy-Item projects\shorts-superheroes\.env.example projects\shorts-superheroes\.env
+notepad projects\shorts-superheroes\.env
+```
+
+The CLI, local worker, and n8n importer load `projects/shorts-superheroes/.env` automatically. Existing shell environment variables take priority over `.env` values.
+
 ## MVP Stages
 
 1. Draft stories and review scripts/prompts.
@@ -47,11 +56,9 @@ The MVP uses a manual review gate between each stage:
 - `n8n-workflows/shorts-superheroes-assets.json` generates images, then audio, after draft review.
 - `n8n-workflows/shorts-superheroes-render.json` renders final videos after image review.
 
-Import the three JSON files through the n8n UI, or set `N8N_API_KEY` and run:
+Import the three JSON files through the n8n UI, or fill `N8N_API_KEY` in `.env` and run:
 
 ```powershell
-$env:N8N_URL="http://localhost:5678"
-$env:N8N_API_KEY=Read-Host "N8N API key"
 & "C:\Users\muril\AppData\Local\Programs\Python\Python310\python.exe" projects\shorts-superheroes\n8n-workflows\create-shorts-superheroes.py
 ```
 

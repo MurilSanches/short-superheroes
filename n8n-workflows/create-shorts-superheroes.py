@@ -1,12 +1,20 @@
 import json
 import os
 from pathlib import Path
+import sys
 import urllib.request
 
 
+ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = ROOT.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from shorts_superheroes.env import load_dotenv
+
+
+load_dotenv(PROJECT_ROOT / ".env")
 N8N_URL = os.environ.get("N8N_URL", "http://localhost:5678")
 N8N_KEY = os.environ["N8N_API_KEY"]
-ROOT = Path(__file__).resolve().parent
 
 
 def post_workflow(path: Path) -> dict:

@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from shorts_superheroes.clients import DryRunImageClient, DryRunStoryClient, DryRunTtsClient, OpenAIStoryClient
+from shorts_superheroes.env import load_dotenv
 from shorts_superheroes.models import load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch
 
@@ -16,6 +17,7 @@ DEFAULT_PROJECT_ROOT = Path("projects/shorts-superheroes")
 
 
 def run_stage(payload: dict) -> dict:
+    load_dotenv()
     stage = str(payload["stage"])
     dry_run = bool(payload.get("dry_run", False))
 

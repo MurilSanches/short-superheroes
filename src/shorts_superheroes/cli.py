@@ -12,6 +12,7 @@ from shorts_superheroes.clients import (
     OpenAIImageClient,
     OpenAIStoryClient,
 )
+from shorts_superheroes.env import load_dotenv
 from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch, write_batch
 
@@ -62,6 +63,7 @@ def _load_settings(path: Path) -> dict:
 
 
 def main() -> int:
+    load_dotenv()
     parser = argparse.ArgumentParser()
     parser.add_argument("--settings", default="projects/shorts-superheroes/config/settings.example.json")
     subparsers = parser.add_subparsers(dest="command", required=True)
