@@ -1,0 +1,34 @@
+{
+  "project_root": "projects/shorts-superheroes",
+  "video_count": 4,
+  "min_duration_sec": 45,
+  "max_duration_sec": 60,
+  "min_scenes": 6,
+  "max_scenes": 8,
+  "language": "simple English",
+  "review_mode": "full_validation",
+  "openai": {
+    "text_model": "gpt-4.1-mini",
+    "image_model_default": "gpt-image-1-mini",
+    "image_model_quality": "gpt-image-2",
+    "image_size": "1024x1536",
+    "image_quality": "medium"
+  },
+  "elevenlabs": {
+    "model_id": "eleven_flash_v2_5",
+    "voice_id": "21m00Tcm4TlvDq8ikWAM",
+    "output_format": "mp3_44100_128"
+  },
+  "costs": {
+    "text_generation_usd_per_batch": 0.02,
+    "image_usd_by_model_quality_size": {
+      "gpt-image-1-mini|medium|1024x1536": 0.015,
+      "gpt-image-2|medium|1024x1536": 0.041
+    },
+    "elevenlabs_flash_turbo_usd_per_1000_chars": 0.05
+  },
+  "worker": {
+    "host": "127.0.0.1",
+    "port": 8765
+  }
+}
