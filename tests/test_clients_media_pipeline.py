@@ -16,7 +16,7 @@ from shorts_superheroes.clients import (
     OpenAIStoryClient,
 )
 from shorts_superheroes.media import build_render_command, render_video
-from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, load_json
+from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile, load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch, write_batch
 from shorts_superheroes.worker import run_stage
 
@@ -35,6 +35,13 @@ def story_payload() -> dict:
             "recurring_setting": "a sunny rooftop garden library",
             "visual_style": "soft 3D storybook illustration",
             "negative_restrictions": ["no existing superhero logos"],
+        },
+        "villain_profile": {
+            "name": "The Sign Swapper",
+            "motive": "wants every garden path to follow only his rules",
+            "plan": "quietly swaps every helpful sign so friends walk in circles",
+            "visual_design": "a tiny original trickster in a striped raincoat with paper-arrow cuffs",
+            "nonviolent_methods": ["confusing signs", "paper fog", "mismatched arrows"],
         },
         "script": "Nova Nook shares a map and helps friends find a lost seed.",
         "scenes": [
@@ -114,6 +121,13 @@ class ClientTests(unittest.TestCase):
             self.assertGreaterEqual(len(story.script), 900)
             self.assertEqual(len(story.scenes), 6)
             self.assertTrue(story.hero_name)
+            self.assertTrue(story.villain_profile.name)
+            self.assertTrue(story.villain_profile.plan)
+            self.assertIn(story.villain_profile.name, story.script)
+            self.assertTrue(
+                any(story.villain_profile.name in scene.image_prompt for scene in story.scenes),
+                "dry-run image prompts should include the antagonist for visual continuity",
+            )
             self.assertTrue(story.tiktok_title)
             self.assertTrue(story.hashtags)
 
@@ -148,6 +162,13 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(captured["payload"]["text"]["format"]["type"], "json_schema")
         self.assertTrue(captured["payload"]["text"]["format"]["strict"])
         self.assertIn("stories", captured["payload"]["text"]["format"]["schema"]["properties"])
+        story_schema = captured["payload"]["text"]["format"]["schema"]["properties"]["stories"]["items"]
+        self.assertIn("villain_profile", story_schema["required"])
+        villain_schema = story_schema["properties"]["villain_profile"]
+        self.assertEqual(
+            villain_schema["required"],
+            ["name", "motive", "plan", "visual_design", "nonviolent_methods"],
+        )
         self.assertEqual(
             captured["payload"]["text"]["format"]["schema"]["properties"]["stories"]["minItems"],
             4,
@@ -295,6 +316,13 @@ def pipeline_story(video_id: str = "video-01") -> StoryPackage:
             recurring_setting="a sunny town garden",
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos"],
+        ),
+        villain_profile=VillainProfile(
+            name="The Pebble Pusher",
+            motive="wants the garden path to belong only to him",
+            plan="rolls glowing seeds into the wrong places so friends cannot share the path",
+            visual_design="a small original antagonist with square goggles and a coat of flat stones",
+            nonviolent_methods=["rolling seeds", "blocking paths", "muddy sign tricks"],
         ),
         script=script,
         scenes=[

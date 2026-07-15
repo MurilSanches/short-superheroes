@@ -64,7 +64,12 @@ def _joined_story_text(story: StoryPackage) -> str:
         story.character_bible.power,
         story.character_bible.recurring_setting,
         story.character_bible.visual_style,
+        story.villain_profile.name,
+        story.villain_profile.motive,
+        story.villain_profile.plan,
+        story.villain_profile.visual_design,
     ]
+    parts.extend(story.villain_profile.nonviolent_methods)
     for scene in story.scenes:
         parts.extend([scene.narration, scene.image_prompt])
     parts.extend(story.hashtags)

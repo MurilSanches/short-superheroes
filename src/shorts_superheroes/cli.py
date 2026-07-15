@@ -13,7 +13,7 @@ from shorts_superheroes.clients import (
     OpenAIStoryClient,
 )
 from shorts_superheroes.env import load_dotenv
-from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, load_json
+from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile, load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch, write_batch
 
 
@@ -22,6 +22,7 @@ def _sample_stories() -> list[StoryPackage]:
     for index in range(1, 5):
         video_id = f"video-{index:02d}"
         hero_name = f"Glow Garden {index}"
+        villain_name = f"The Thorn Timer {index}"
         stories.append(
             StoryPackage(
                 video_id=video_id,
@@ -37,23 +38,32 @@ def _sample_stories() -> list[StoryPackage]:
                     visual_style="soft 3D storybook illustration",
                     negative_restrictions=["no existing superhero logos", "no Marvel", "no DC"],
                 ),
+                villain_profile=VillainProfile(
+                    name=villain_name,
+                    motive="wants the garden to follow only his rushed schedule",
+                    plan="turns every garden marker backward so friends cannot agree where to help first",
+                    visual_design="an original tiny antagonist with a square leaf clock and striped moss boots",
+                    nonviolent_methods=["backward markers", "tick-tock fog", "mixed-up garden cards"],
+                ),
                 script=(
                     f"{hero_name} found a worried seed in the garden just as the morning light touched the leaves. "
-                    "The tiny seed wanted to grow, but the wind felt loud, the soil felt cold, and every shadow seemed too big. "
-                    f"{hero_name} sat nearby, kept a gentle voice, and asked the garden friends to listen before anyone tried to fix the problem. "
-                    "A ladybug noticed the warmest patch of soil, a snail found a quiet path, and a sparrow brought a soft feather to make the seed feel safe. "
-                    "The hero made listening lights that glowed whenever someone shared a kind idea, and soon the whole garden could see the plan clearly. "
-                    "Together they moved one pebble, brushed one leaf, and made one cozy place where the seed could rest without feeling rushed. "
-                    "When a small sprout finally peeked out, everyone cheered softly, because they had learned that careful listening can turn a scary problem into shared work. "
+                    f"Then {villain_name} turned every garden marker backward, because he wanted the garden to follow only his rushed schedule. "
+                    "The tiny seed wanted to grow, but the wind felt loud, the soil felt cold, and every sign sent helpers in the wrong direction. "
+                    f"{hero_name} tried a first attempt with listening lights, but the lights followed the backward markers and made a glowing loop. "
+                    "A ladybug noticed the warmest patch of soil, a snail found a quiet path, and a sparrow spotted one marker with fresh moss on the wrong side. "
+                    "That clue changed the plan: the markers were not lost, they had been turned in a pattern. "
+                    f"{hero_name} faced {villain_name} without violence and asked the friends to read the pattern together. "
+                    "Together they moved one pebble, brushed one leaf, turned each marker back, and made one cozy place where the seed could rest without feeling rushed. "
+                    "When a small sprout finally peeked out, everyone cheered softly, because they had learned that careful listening can turn a confusing problem into shared work. "
                     f"{hero_name} smiled and promised to return whenever a friend needed patience, teamwork, and a little light."
                 ),
                 scenes=[
-                    Scene("scene-01", 11, f"{hero_name} finds a worried seed.", f"Portrait soft 3D storybook scene of {hero_name} finding a worried seed."),
-                    Scene("scene-02", 11, "Friends gather kindly.", "Garden friends gather kindly around an original hero."),
-                    Scene("scene-03", 11, "A listening light appears.", "A warm listening light appears in a garden library."),
-                    Scene("scene-04", 11, "Everyone shares ideas.", "Friendly characters share ideas in a sunny garden."),
-                    Scene("scene-05", 11, "The seed settles into soil.", "A tiny seed settles into glowing soil."),
-                    Scene("scene-06", 11, "A sprout grows.", "A happy sprout grows while friends smile."),
+                    Scene("scene-01", 11, f"{hero_name} finds backward garden markers.", f"Portrait soft 3D storybook scene of {hero_name} finding backward garden markers caused by {villain_name}."),
+                    Scene("scene-02", 11, f"{villain_name} watches the garden confusion.", f"Original antagonist {villain_name} with a square leaf clock near safe mixed-up garden signs."),
+                    Scene("scene-03", 11, "A listening light loops around.", "A warm listening light loops around backward signs in a garden library."),
+                    Scene("scene-04", 11, "Friends discover the moss clue.", "Friendly characters find a moss clue on a turned garden marker."),
+                    Scene("scene-05", 11, f"{hero_name} faces {villain_name} calmly.", f"Nonviolent storybook confrontation between {hero_name} and {villain_name}, no weapons, no fighting."),
+                    Scene("scene-06", 11, "A sprout grows after the markers are fixed.", "A happy sprout grows while friends restore garden markers together."),
                 ],
                 tiktok_title=f"{hero_name} and the Listening Light",
                 tiktok_description="A gentle original superhero story about listening.",

@@ -41,6 +41,30 @@ class CharacterBible:
 
 
 @dataclass
+class VillainProfile:
+    name: str = ""
+    motive: str = ""
+    plan: str = ""
+    visual_design: str = ""
+    nonviolent_methods: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> "VillainProfile":
+        if not data:
+            return cls()
+        return cls(
+            name=str(data.get("name", "")),
+            motive=str(data.get("motive", "")),
+            plan=str(data.get("plan", "")),
+            visual_design=str(data.get("visual_design", "")),
+            nonviolent_methods=[str(item) for item in data.get("nonviolent_methods", [])],
+        )
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class Scene:
     scene_id: str
     duration_sec: int
@@ -69,6 +93,7 @@ class StoryPackage:
     moral: str
     target_duration_sec: int
     character_bible: CharacterBible
+    villain_profile: VillainProfile
     script: str
     scenes: list[Scene]
     tiktok_title: str
@@ -85,6 +110,7 @@ class StoryPackage:
             moral=str(data["moral"]),
             target_duration_sec=int(data["target_duration_sec"]),
             character_bible=CharacterBible.from_dict(data["character_bible"]),
+            villain_profile=VillainProfile.from_dict(data.get("villain_profile")),
             script=str(data["script"]),
             scenes=[Scene.from_dict(item) for item in data.get("scenes", [])],
             tiktok_title=str(data["tiktok_title"]),
@@ -97,6 +123,7 @@ class StoryPackage:
     def to_dict(self) -> dict:
         data = asdict(self)
         data["character_bible"] = self.character_bible.to_dict()
+        data["villain_profile"] = self.villain_profile.to_dict()
         data["scenes"] = [scene.to_dict() for scene in self.scenes]
         return data
 

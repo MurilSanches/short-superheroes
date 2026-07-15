@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 import tempfile
 
-from shorts_superheroes.models import CharacterBible, Scene, StoryPackage
+from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile
 from shorts_superheroes.costs import estimate_story_cost
 from shorts_superheroes.review import build_review_markdown, write_story_files
 from shorts_superheroes.safety import validate_story_package
@@ -41,6 +41,13 @@ def sample_story(**overrides):
             recurring_setting="a cozy cloud city library",
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos"],
+        ),
+        "villain_profile": VillainProfile(
+            name="The Quiet Shuffler",
+            motive="wants every library map to obey only his secret order",
+            plan="mixes up glowing map pages so friends cannot find the reading room",
+            visual_design="a small original antagonist in a square purple coat with folded-map cuffs",
+            nonviolent_methods=["map shuffling", "soft fog", "misleading arrows"],
         ),
         "script": sixty_second_script(),
         "scenes": [
@@ -157,6 +164,8 @@ class CostAndReviewTests(unittest.TestCase):
         self.assertIn("# Batch 2026-07-15-001 Review", markdown)
         self.assertIn("- [ ] Scripts and image prompts approved", markdown)
         self.assertIn("Estimated total", markdown)
+        self.assertIn("**Villain:** The Quiet Shuffler", markdown)
+        self.assertIn("**Villain plan:** mixes up glowing map pages", markdown)
 
     def test_build_review_markdown_rejects_mismatched_estimates(self):
         story = sample_story()

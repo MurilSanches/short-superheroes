@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 import urllib.request
 
-from .models import CharacterBible, Scene, StoryPackage
+from .models import CharacterBible, Scene, StoryPackage, VillainProfile
 
 
 JsonTransport = Callable[[str, dict[str, str], dict], dict]
@@ -143,14 +143,64 @@ class DryRunStoryClient:
     ) -> list[StoryPackage]:
         del theme_seed, system_prompt, user_prompt
         stories = [
-            ("Luma Leap", "honesty", "a teal cape and gold cloud boots", "gentle guiding lights"),
-            ("Piper Pulse", "sharing", "a coral jacket and silver sneakers", "warm rhythm waves"),
-            ("Moss Mender", "patience", "a green hood and amber gloves", "tiny helpful vines"),
-            ("Skye Spark", "kindness", "a blue vest and bright white boots", "soft star lanterns"),
+            (
+                "Luma Leap",
+                "honesty",
+                "a teal cape and gold cloud boots",
+                "gentle guiding lights",
+                "The Page Taker",
+                "wants to keep every secret map for himself",
+                "slides glowing map pages into blank books so no friend can find the right shelf",
+                "a small original antagonist with a violet bookmark cloak and square moon glasses",
+                ["map hiding", "paper fog", "silent shelf shuffling"],
+            ),
+            (
+                "Piper Pulse",
+                "sharing",
+                "a coral jacket and silver sneakers",
+                "warm rhythm waves",
+                "Madam Mute Button",
+                "wants the town parade to hear only her tiny whistle",
+                "captures friendly songs inside clear bubbles and floats them above the street",
+                "an original button-covered trickster with a tall mint hat and ribbon shoes",
+                ["sound bubbles", "echo loops", "mixed-up parade signs"],
+            ),
+            (
+                "Moss Mender",
+                "patience",
+                "a green hood and amber gloves",
+                "tiny helpful vines",
+                "Count Crumbleclock",
+                "wants every garden task finished too fast",
+                "spins the garden clock until seedlings and helpers rush in the wrong order",
+                "a clock-caped original antagonist with pebble buttons and twig spectacles",
+                ["time rushing", "crooked schedules", "tick-tock fog"],
+            ),
+            (
+                "Skye Spark",
+                "kindness",
+                "a blue vest and bright white boots",
+                "soft star lanterns",
+                "The Cloud Collector",
+                "wants to keep all bright clouds in his own silver jar",
+                "pulls helpful clouds away from the playground so everyone loses shade",
+                "a round original antagonist with jar-shaped goggles and a silver raincoat",
+                ["cloud scooping", "shadow puzzles", "floating jar tricks"],
+            ),
         ]
         return [
-            _dry_run_story(index, hero_name, moral, appearance, power)
-            for index, (hero_name, moral, appearance, power) in enumerate(stories, start=1)
+            _dry_run_story(index, hero_name, moral, appearance, power, villain_name, motive, plan, visual, methods)
+            for index, (
+                hero_name,
+                moral,
+                appearance,
+                power,
+                villain_name,
+                motive,
+                plan,
+                visual,
+                methods,
+            ) in enumerate(stories, start=1)
         ]
 
 
@@ -214,6 +264,18 @@ def _story_response_format() -> dict:
             "negative_restrictions": string_array,
         },
     }
+    villain = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["name", "motive", "plan", "visual_design", "nonviolent_methods"],
+        "properties": {
+            "name": {"type": "string"},
+            "motive": {"type": "string"},
+            "plan": {"type": "string"},
+            "visual_design": {"type": "string"},
+            "nonviolent_methods": string_array,
+        },
+    }
     story = {
         "type": "object",
         "additionalProperties": False,
@@ -223,6 +285,7 @@ def _story_response_format() -> dict:
             "moral",
             "target_duration_sec",
             "character_bible",
+            "villain_profile",
             "script",
             "scenes",
             "tiktok_title",
@@ -235,6 +298,7 @@ def _story_response_format() -> dict:
             "moral": {"type": "string"},
             "target_duration_sec": {"type": "integer", "minimum": 60, "maximum": 75},
             "character_bible": bible,
+            "villain_profile": villain,
             "script": {"type": "string"},
             "scenes": {"type": "array", "items": scene},
             "tiktok_title": {"type": "string"},
@@ -268,15 +332,72 @@ def _dry_run_story(
     moral: str,
     appearance: str,
     power: str,
+    villain_name: str,
+    villain_motive: str,
+    villain_plan: str,
+    villain_visual: str,
+    villain_methods: list[str],
 ) -> StoryPackage:
+    hero_visual = f"An original young hero wearing {appearance}."
+    recurring_setting = "a cozy cloud city library"
     scenes = [
         Scene(
-            scene_id=f"scene-{scene_index:02d}",
+            scene_id="scene-01",
             duration_sec=11,
-            narration=f"{hero_name} begins a small mission with a friend.",
-            image_prompt=f"Original soft 3D storybook scene of {hero_name} on a kind mission.",
-        )
-        for scene_index in range(1, 7)
+            narration=f"{hero_name} notices the first strange clue from {villain_name}'s plan.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"Setting: {recurring_setting}. Antagonist: {villain_name}, {villain_visual}. "
+                f"Show a safe visual clue from the villain plan: {villain_plan}."
+            ),
+        ),
+        Scene(
+            scene_id="scene-02",
+            duration_sec=11,
+            narration=f"{villain_name} makes the problem bigger with a clever nonviolent trick.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"Setting: {recurring_setting}. Show {villain_name}, {villain_visual}, using "
+                f"{villain_methods[0]} without violence while friends look puzzled but safe."
+            ),
+        ),
+        Scene(
+            scene_id="scene-03",
+            duration_sec=11,
+            narration=f"{hero_name}'s first attempt helps a little but does not stop the whole plan.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"{hero_name} uses {power} while {villain_name}'s plan still causes a gentle obstacle."
+            ),
+        ),
+        Scene(
+            scene_id="scene-04",
+            duration_sec=11,
+            narration="A small clue reveals what the team misunderstood.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"Friends discover a kind clue about {villain_name}'s motive: {villain_motive}."
+            ),
+        ),
+        Scene(
+            scene_id="scene-05",
+            duration_sec=11,
+            narration=f"{hero_name} faces {villain_name} with courage, listening, and a smarter plan.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"Nonviolent confrontation between {hero_name} and {villain_name}; no weapons, no fighting, "
+                "only brave teamwork and glowing clues."
+            ),
+        ),
+        Scene(
+            scene_id="scene-06",
+            duration_sec=11,
+            narration=f"The friends repair the problem and {hero_name} explains the lesson.",
+            image_prompt=(
+                f"Portrait 1024x1536 soft 3D storybook illustration. {hero_visual} "
+                f"The safe aftermath after stopping {villain_name}'s plan, friends restoring the setting together."
+            ),
+        ),
     ]
     return StoryPackage(
         video_id=f"video-{index:02d}",
@@ -284,30 +405,49 @@ def _dry_run_story(
         moral=f"{moral.capitalize()} helps friends solve problems together.",
         target_duration_sec=66,
         character_bible=CharacterBible(
-            appearance=f"An original young hero wearing {appearance}.",
+            appearance=hero_visual,
             color_palette=["teal", "gold", "white"],
             original_symbol="a small sunrise inside a circle",
             power=power,
-            recurring_setting="a cozy cloud city library",
+            recurring_setting=recurring_setting,
             visual_style="soft 3D storybook illustration",
             negative_restrictions=["no existing superhero logos", "no known character designs"],
         ),
-        script=_dry_run_script(hero_name, moral, power),
+        villain_profile=VillainProfile(
+            name=villain_name,
+            motive=villain_motive,
+            plan=villain_plan,
+            visual_design=villain_visual,
+            nonviolent_methods=villain_methods,
+        ),
+        script=_dry_run_script(hero_name, moral, power, villain_name, villain_motive, villain_plan),
         scenes=scenes,
-        tiktok_title=f"{hero_name}'s Kind Mission",
-        tiktok_description=f"A simple original hero story about {moral}.",
+        tiktok_title=f"{hero_name} Stops {villain_name}",
+        tiktok_description=f"An original hero and villain story about {moral}.",
         hashtags=["#kidsstory", "#storytime", "#originalhero"],
     )
 
 
-def _dry_run_script(hero_name: str, moral: str, power: str) -> str:
+def _dry_run_script(
+    hero_name: str,
+    moral: str,
+    power: str,
+    villain_name: str,
+    villain_motive: str,
+    villain_plan: str,
+) -> str:
     return (
-        f"{hero_name} was getting ready for a quiet morning when a soft bell rang across the cozy cloud city library. "
-        f"A young friend had found a problem that felt too big to solve alone, so {hero_name} flew over slowly and listened first. "
-        "Instead of rushing, the hero asked each friend what they noticed, what they felt, and what kind of help would feel safe. "
-        f"One friend pointed to a hidden path, another friend shared a careful idea, and {hero_name} used {power} to make the plan easy to follow. "
-        "The team tried one small step, then paused, smiled, and changed the plan when it needed to be kinder. "
-        "Soon every friend had a helpful job: one watched the path, one carried a tiny lantern, one encouraged the group, and one remembered the way home. "
-        f"When the mission was finished, {hero_name} thanked everyone by name and reminded them that {moral} works best when friends listen to each other. "
-        "The whole library glowed warmly, not because one hero did everything, but because the whole team shared courage, patience, and care."
+        f"{hero_name} was getting ready for a quiet morning when the cozy cloud city library gave three soft chimes, "
+        "which meant something important had gone wrong. A row of friendly signs suddenly pointed in different directions, "
+        f"and every lost reader whispered that the trouble began after {villain_name} passed by with a secret smile. "
+        f"{villain_name} wanted a real obstacle, not a silly prank, because {villain_motive}. The villain plan was to {villain_plan}, "
+        "so friends would feel confused and ask only the villain for answers. "
+        f"{hero_name} tried a first attempt right away, using {power} to draw one bright path across the floor, but the path split into loops and did not solve the whole problem. "
+        "That failure made the room quiet for a moment. Instead of pushing harder, the hero asked each friend what had changed, what still felt safe, and what clue looked different from the rest. "
+        "A tiny corner of one sign had a folded mark, and that twist showed the team that the signs were not broken; they had been rearranged in a pattern. "
+        f"{hero_name} faced {villain_name} without violence, weapons, or shouting. The hero named the plan, listened to the motive, and invited the friends to rebuild the pattern together. "
+        "One friend read the folded marks, one friend watched the shelves, and one friend carried a lantern so nobody felt alone. "
+        f"When the plan came apart, {villain_name} saw that control had made the library smaller, while teamwork made it bright again. "
+        f"{hero_name} reminded everyone that {moral} works best when courage comes with patience, honesty, and care. "
+        "By sunset, the signs pointed home, the readers found their books, and the whole team understood that a smart hero does not need to overpower a villain to protect a place they love."
     )

@@ -3,7 +3,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from shorts_superheroes.models import Batch, CharacterBible, Scene, StoryPackage
+from shorts_superheroes.models import Batch, CharacterBible, Scene, StoryPackage, VillainProfile
 from shorts_superheroes.paths import ensure_batch_layout, make_batch_id
 
 
@@ -46,6 +46,13 @@ class ModelAndPathTests(unittest.TestCase):
                 visual_style="soft 3D storybook illustration",
                 negative_restrictions=["no Marvel", "no DC", "no existing superhero logos"],
             ),
+            villain_profile=VillainProfile(
+                name="The Moon Marker",
+                motive="wants every map to show only his favorite path",
+                plan="moves the moon map stickers so friends walk in gentle circles",
+                visual_design="a tiny original antagonist with a silver sticker cape and square glasses",
+                nonviolent_methods=["map sticker swaps", "silver fog", "soft arrow tricks"],
+            ),
             script="Luma Leap found a lost moon map and helped everyone share the clues.",
             scenes=[
                 Scene(
@@ -62,8 +69,10 @@ class ModelAndPathTests(unittest.TestCase):
         payload = story.to_dict()
         self.assertEqual(payload["video_id"], "video-01")
         self.assertEqual(payload["character_bible"]["original_symbol"], "a tiny sunrise inside a circle")
+        self.assertEqual(payload["villain_profile"]["name"], "The Moon Marker")
         restored = StoryPackage.from_dict(payload)
         self.assertEqual(restored.scenes[0].scene_id, "scene-01")
+        self.assertEqual(restored.villain_profile.plan, "moves the moon map stickers so friends walk in gentle circles")
 
     def test_ensure_batch_layout_creates_expected_directories(self):
         with tempfile.TemporaryDirectory() as tmp:
