@@ -1,7 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 import subprocess
+
+
+def resolve_ffmpeg_executable() -> str:
+    executable = shutil.which("ffmpeg")
+    if executable:
+        return executable
+
+    try:
+        import imageio_ffmpeg
+    except ImportError:
+        return "ffmpeg"
+
+    return str(imageio_ffmpeg.get_ffmpeg_exe())
 
 
 def build_render_command(
@@ -13,7 +27,7 @@ def build_render_command(
     if not image_paths:
         raise ValueError("image_paths must not be empty")
 
-    command = ["ffmpeg", "-y"]
+    command = [resolve_ffmpeg_executable(), "-y"]
     for image_path in image_paths:
         command.extend(["-loop", "1", "-t", str(scene_duration_sec), "-i", str(image_path)])
 

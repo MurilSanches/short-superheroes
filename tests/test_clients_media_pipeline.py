@@ -1,7 +1,9 @@
 import json
 import os
+import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -225,6 +227,23 @@ class ClientTests(unittest.TestCase):
 
 
 class MediaTests(unittest.TestCase):
+    def test_resolve_ffmpeg_executable_falls_back_to_imageio_ffmpeg(self):
+        fake_imageio_ffmpeg = SimpleNamespace(get_ffmpeg_exe=lambda: r"C:\tools\ffmpeg.exe")
+
+        with (
+            patch("shutil.which", return_value=None),
+            patch.dict(sys.modules, {"imageio_ffmpeg": fake_imageio_ffmpeg}),
+        ):
+            from shorts_superheroes import media
+
+            self.assertEqual(media.resolve_ffmpeg_executable(), r"C:\tools\ffmpeg.exe")
+
+    def test_build_render_command_uses_resolved_ffmpeg_executable(self):
+        with patch("shorts_superheroes.media.resolve_ffmpeg_executable", return_value="custom-ffmpeg", create=True):
+            command = build_render_command([Path("scene-01.png")], Path("voice.mp3"), Path("final.mp4"), scene_duration_sec=8)
+
+        self.assertEqual(command[0], "custom-ffmpeg")
+
     def test_build_render_command_targets_vertical_mp4(self):
         images = [Path("scene-01.png"), Path("scene-02.png")]
         command = build_render_command(images, Path("voice.mp3"), Path("final.mp4"), scene_duration_sec=8)
@@ -293,7 +312,9 @@ class PipelineTests(unittest.TestCase):
             render_batch(batch_dir, dry_run=True)
 
             self.assertTrue((batch_dir / "review.md").is_file())
-            self.assertTrue((batch_dir / "video-01" / "images" / "scene-01.txt").is_file())
+            self.assertTrue((batch_dir / "video-01" / "images" / "scene-01.png").is_file())
+            story = load_json(batch_dir / "video-01" / "story.json")
+            self.assertTrue(story["scenes"][0]["image_path"].endswith("scene-01.png"))
             self.assertTrue((batch_dir / "video-01" / "audio" / "voice.mp3").is_file())
             self.assertTrue((batch_dir / "video-01" / "final" / "video-01.mp4").is_file())
             batch = load_json(batch_dir / "batch.json")
@@ -342,7 +363,7 @@ class PipelineTests(unittest.TestCase):
                 generate_images(batch_dir, client)
 
             self.assertEqual(client.calls, [])
-            self.assertFalse((batch_dir / "video-01" / "images" / "scene-01.txt").exists())
+            self.assertFalse((batch_dir / "video-01" / "images" / "scene-01.png").exists())
 
     def test_draft_batch_passes_theme_seed_and_prompt_contents_to_story_client(self):
         captured = {}

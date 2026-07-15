@@ -95,7 +95,7 @@ def generate_images(batch_dir: Path, image_client) -> None:
     batch, stories = _load_validated_batch(batch_dir, "drafted")
     for video_dir, story in zip(_story_dirs(batch_dir), stories):
         for scene in story.scenes:
-            output_path = video_dir / "images" / f"{scene.scene_id}.txt"
+            output_path = video_dir / "images" / f"{scene.scene_id}.png"
             scene.image_path = str(image_client.generate_image(scene.image_prompt, output_path))
         write_json(video_dir / "story.json", story.to_dict())
 

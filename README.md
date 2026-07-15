@@ -16,6 +16,12 @@ Set `PYTHONPATH` when running from the vault root:
 $env:PYTHONPATH="projects\shorts-superheroes\src"
 ```
 
+Install local render dependencies:
+
+```powershell
+& "C:\Users\muril\AppData\Local\Programs\Python\Python310\python.exe" -m pip install --user -r projects\shorts-superheroes\requirements.txt
+```
+
 Create a local `.env` file from `.env.example` for real API runs:
 
 ```powershell
