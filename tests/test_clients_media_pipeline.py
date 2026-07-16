@@ -1,4 +1,5 @@
 import json
+import io
 import os
 import sys
 import tempfile
@@ -15,6 +16,7 @@ from shorts_superheroes.clients import (
     OpenAIImageClient,
     OpenAIStoryClient,
     OpenAIThemeSeedClient,
+    default_json_transport,
 )
 from shorts_superheroes.media import build_render_command, render_video
 from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile, load_json
@@ -111,6 +113,22 @@ class ClientTests(unittest.TestCase):
             self.assertEqual(captured["payload"]["size"], "1024x1536")
             self.assertEqual(captured["payload"]["quality"], "medium")
             self.assertEqual(output.read_bytes(), b"DRY RUN")
+
+    def test_default_json_transport_includes_http_error_body(self):
+        from urllib.error import HTTPError
+
+        error_body = b'{"error":{"message":"Invalid image prompt","type":"invalid_request_error"}}'
+        error = HTTPError(
+            "https://api.openai.com/v1/images/generations",
+            400,
+            "Bad Request",
+            {},
+            io.BytesIO(error_body),
+        )
+
+        with patch("urllib.request.urlopen", side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, "Invalid image prompt"):
+                default_json_transport("https://api.openai.com/v1/images/generations", {}, {"prompt": "x"})
 
     def test_dry_run_story_client_returns_four_complete_story_packages(self):
         stories = DryRunStoryClient().generate_stories("kind heroes")
@@ -457,6 +475,44 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(client.calls, [])
             self.assertFalse((batch_dir / "video-01" / "images" / "scene-01.png").exists())
 
+    def test_generate_images_skips_existing_image_files_when_resuming(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stories = [pipeline_story(f"video-{index:02d}") for index in range(1, 5)]
+            batch_dir = write_batch(root, "2026-07-16-resume", stories, self.settings, "gpt-image-1-mini")
+            existing = batch_dir / "video-01" / "images" / "scene-01.png"
+            existing.write_bytes(b"existing image")
+
+            class RecordingImageClient:
+                def __init__(self):
+                    self.calls = []
+
+                def generate_image(self, prompt, output_path):
+                    self.calls.append((prompt, output_path))
+                    output_path.write_bytes(b"new image")
+                    return output_path
+
+            client = RecordingImageClient()
+            generate_images(batch_dir, client)
+
+            self.assertEqual(existing.read_bytes(), b"existing image")
+            self.assertNotIn(existing, [output_path for _, output_path in client.calls])
+            self.assertTrue((batch_dir / "video-01" / "images" / "scene-02.png").is_file())
+
+    def test_generate_images_reports_story_scene_and_prompt_on_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stories = [pipeline_story(f"video-{index:02d}") for index in range(1, 5)]
+            batch_dir = write_batch(root, "2026-07-16-image-error", stories, self.settings, "gpt-image-1-mini")
+
+            class FailingImageClient:
+                def generate_image(self, prompt, output_path):
+                    del output_path
+                    raise RuntimeError("HTTP 400 Bad Request: policy body")
+
+            with self.assertRaisesRegex(RuntimeError, "video-01/scene-01"):
+                generate_images(batch_dir, FailingImageClient())
+
     def test_draft_batch_passes_theme_seed_and_prompt_contents_to_story_client(self):
         captured = {}
 
@@ -776,6 +832,7 @@ class CliTests(unittest.TestCase):
 
             with (
                 patch.object(sys, "argv", argv),
+                patch.object(sys, "stderr", io.StringIO()),
                 patch("builtins.print") as print_call,
             ):
                 exit_code = cli_main()
@@ -836,6 +893,7 @@ class CliTests(unittest.TestCase):
                 patch.object(sys, "argv", argv),
                 patch("shorts_superheroes.cli.date") as date_type,
                 patch("shorts_superheroes.cli.random.choice", return_value="clockwork library villain mystery"),
+                patch.object(sys, "stderr", io.StringIO()),
                 patch("builtins.print") as print_call,
             ):
                 date_type.today.return_value.isoformat.return_value = "2026-07-16"
@@ -845,6 +903,76 @@ class CliTests(unittest.TestCase):
             batch_dir = root / "batches" / "2026-07-16-001"
             batch = load_json(batch_dir / "batch.json")
             self.assertEqual(batch["theme_seed"], "clockwork library villain mystery")
+            printed_paths = [call.args[0] for call in print_call.call_args_list]
+            self.assertEqual(len(printed_paths), 4)
+
+    def test_run_full_batch_writes_progress_logs_to_stderr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            templates = root / "config" / "prompt-templates"
+            templates.mkdir(parents=True)
+            (templates / "story-system.md").write_text("System prompt", encoding="utf-8")
+            (templates / "story-user.md").write_text("Theme: {{theme_seed}}", encoding="utf-8")
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "video_count": 4,
+                        "review_mode": "full_validation",
+                        "openai": {
+                            "text_model": "gpt-4.1-mini",
+                            "image_model_default": "gpt-image-1-mini",
+                            "image_size": "1024x1536",
+                            "image_quality": "medium",
+                        },
+                        "elevenlabs": {
+                            "voice_id": "voice-123",
+                            "model_id": "eleven_flash_v2_5",
+                            "output_format": "mp3_44100_128",
+                        },
+                        "costs": {
+                            "text_generation_usd_per_batch": 0.02,
+                            "image_usd_by_model_quality_size": {
+                                "gpt-image-1-mini|medium|1024x1536": 0.015
+                            },
+                            "elevenlabs_flash_turbo_usd_per_1000_chars": 0.05,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            argv = [
+                "shorts_superheroes.cli",
+                "--settings",
+                str(settings_path),
+                "run-full-batch",
+                "--batch-id",
+                "2026-07-16-log-test",
+                "--project-root",
+                str(root),
+                "--theme-seed",
+                "bedtime star mystery",
+                "--dry-run",
+            ]
+            stderr = io.StringIO()
+
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(sys, "stderr", stderr),
+                patch("builtins.print") as print_call,
+            ):
+                exit_code = cli_main()
+
+            self.assertEqual(exit_code, 0)
+            logs = stderr.getvalue()
+            self.assertIn("[run-full-batch] starting batch 2026-07-16-log-test", logs)
+            self.assertIn("[run-full-batch] theme_seed: bedtime star mystery", logs)
+            self.assertIn("[run-full-batch] drafting stories", logs)
+            self.assertIn("[run-full-batch] generating images", logs)
+            self.assertIn("[run-full-batch] generating audio", logs)
+            self.assertIn("[run-full-batch] rendering videos", logs)
+            self.assertIn("[run-full-batch] done", logs)
             printed_paths = [call.args[0] for call in print_call.call_args_list]
             self.assertEqual(len(printed_paths), 4)
 

@@ -125,7 +125,16 @@ def generate_images(batch_dir: Path, image_client) -> None:
     for video_dir, story in zip(_story_dirs(batch_dir), stories):
         for scene in story.scenes:
             output_path = video_dir / "images" / f"{scene.scene_id}.png"
-            scene.image_path = str(image_client.generate_image(scene.image_prompt, output_path))
+            if output_path.is_file() and output_path.stat().st_size > 0:
+                scene.image_path = str(output_path)
+                continue
+            try:
+                scene.image_path = str(image_client.generate_image(scene.image_prompt, output_path))
+            except Exception as error:
+                raise RuntimeError(
+                    f"Image generation failed for {story.video_id}/{scene.scene_id} "
+                    f"at {output_path}: {error}\nPrompt: {scene.image_prompt}"
+                ) from error
         write_json(video_dir / "story.json", story.to_dict())
 
     batch.status = "images_generated"

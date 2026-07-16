@@ -39,6 +39,8 @@ Run the complete pipeline and print only the final MP4 paths:
 .\projects\shorts-superheroes\run-full-batch.ps1
 ```
 
+Progress logs are written to `stderr` while the batch runs. `stdout` stays reserved for the final MP4 paths so scripts can capture only the videos.
+
 To force a specific theme seed:
 
 ```powershell

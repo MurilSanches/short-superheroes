@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import random
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -126,6 +127,11 @@ def _load_settings(path: Path) -> dict:
     return load_json(path)
 
 
+def _progress(message: str) -> None:
+    sys.stderr.write(f"[run-full-batch] {message}\n")
+    sys.stderr.flush()
+
+
 def _project_root_from_args(settings: dict, project_root: str | None) -> Path:
     return Path(project_root or settings.get("project_root", "projects/shorts-superheroes"))
 
@@ -239,7 +245,12 @@ def main() -> int:
         image_model = args.image_model or settings["openai"]["image_model_default"]
         project_root = _project_root_from_args(settings, args.project_root)
         batch_id = args.batch_id or _next_batch_id(project_root)
+        _progress(f"starting batch {batch_id}")
+        if not (args.theme_seed and args.theme_seed.strip()):
+            _progress("generating theme seed")
         theme_seed = _theme_seed_from_args(args.theme_seed, project_root, settings, args.dry_run)
+        _progress(f"theme_seed: {theme_seed}")
+        _progress("drafting stories")
         batch_dir = draft_batch(
             project_root,
             batch_id,
@@ -248,10 +259,15 @@ def main() -> int:
             _story_client(settings, args.dry_run),
             image_model,
         )
+        _progress(f"batch_dir: {batch_dir}")
+        _progress("generating images")
         generate_images(batch_dir, _image_client(settings, image_model, args.dry_run))
+        _progress("generating audio")
         generate_audio(batch_dir, _tts_client(settings, args.dry_run))
+        _progress("rendering videos")
         render_batch(batch_dir, dry_run=args.dry_run)
         batch = load_json(batch_dir / "batch.json")
+        _progress("done")
         for final_video_path in batch["final_video_paths"]:
             print(final_video_path)
         return 0

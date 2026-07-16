@@ -4,6 +4,7 @@ import base64
 import json
 from pathlib import Path
 from typing import Callable
+import urllib.error
 import urllib.request
 
 from .models import CharacterBible, Scene, StoryPackage, VillainProfile
@@ -16,15 +17,28 @@ BinaryTransport = Callable[[str, dict[str, str], dict], bytes]
 def default_json_transport(url: str, headers: dict[str, str], payload: dict) -> dict:
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method="POST", headers=headers)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(_http_error_message(error)) from error
 
 
 def default_binary_transport(url: str, headers: dict[str, str], payload: dict) -> bytes:
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method="POST", headers=headers)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.read()
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(_http_error_message(error)) from error
+
+
+def _http_error_message(error: urllib.error.HTTPError) -> str:
+    body = error.read().decode("utf-8", errors="replace").strip()
+    if not body:
+        body = "<empty response body>"
+    return f"HTTP {error.code} {error.reason}: {body}"
 
 
 class OpenAIStoryClient:
