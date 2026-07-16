@@ -4,7 +4,7 @@
   "min_duration_sec": 60,
   "max_duration_sec": 75,
   "min_scenes": 6,
-  "max_scenes": 8,
+  "max_scenes": 6,
   "language": "simple English",
   "review_mode": "full_validation",
   "openai": {
@@ -12,7 +12,7 @@
     "image_model_default": "gpt-image-1-mini",
     "image_model_quality": "gpt-image-2",
     "image_size": "1024x1536",
-    "image_quality": "medium"
+    "image_quality": "low"
   },
   "elevenlabs": {
     "model_id": "eleven_flash_v2_5",
@@ -22,8 +22,8 @@
   "costs": {
     "text_generation_usd_per_batch": 0.02,
     "image_usd_by_model_quality_size": {
-      "gpt-image-1-mini|medium|1024x1536": 0.015,
-      "gpt-image-2|medium|1024x1536": 0.041
+      "gpt-image-1-mini|low|1024x1536": 0.006,
+      "gpt-image-2|low|1024x1536": 0.005
     },
     "elevenlabs_flash_turbo_usd_per_1000_chars": 0.05
   },

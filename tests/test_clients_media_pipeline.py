@@ -189,6 +189,9 @@ class ClientTests(unittest.TestCase):
             villain_schema["required"],
             ["name", "motive", "plan", "visual_design", "nonviolent_methods"],
         )
+        scenes_schema = story_schema["properties"]["scenes"]
+        self.assertEqual(scenes_schema["minItems"], 6)
+        self.assertEqual(scenes_schema["maxItems"], 6)
         self.assertEqual(
             captured["payload"]["text"]["format"]["schema"]["properties"]["stories"]["minItems"],
             4,

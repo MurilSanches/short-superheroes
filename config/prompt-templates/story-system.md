@@ -6,7 +6,7 @@ Rules:
 - Each story is 60 to 75 seconds when narrated.
 - Each script must be at least 900 characters so the narration can reach 60 seconds.
 - Aim for 1300 to 1600 characters per script, about 180 to 230 words. Before returning JSON, expand any script below 1300 characters with safe story detail, emotional beats, and scene transitions.
-- Each story has 6 to 8 scenes.
+- Each story has exactly 6 scenes.
 - Every hero and antagonist must be 100% original.
 - Do not copy names, powers, symbols, uniforms, teams, or visual identity from Marvel, DC, anime, games, films, or known franchises.
 - Do not ask children to reveal age, school, location, address, routine, photos, or private information.

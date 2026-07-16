@@ -1,4 +1,5 @@
 import unittest
+import json
 from pathlib import Path
 import tempfile
 
@@ -80,6 +81,15 @@ class SafetyTests(unittest.TestCase):
     def test_rejects_too_few_scenes(self):
         story = sample_story()
         story.scenes = story.scenes[:5]
+        result = validate_story_package(story)
+        self.assertFalse(result.ok)
+        self.assertIn("scene_count_out_of_range", result.errors)
+
+    def test_rejects_more_than_six_scenes(self):
+        story = sample_story()
+        story.scenes.append(
+            Scene("scene-07", 8, "Extra scene.", "Extra image prompt for a seventh scene.")
+        )
         result = validate_story_package(story)
         self.assertFalse(result.ok)
         self.assertIn("scene_count_out_of_range", result.errors)
@@ -171,6 +181,21 @@ class CostAndReviewTests(unittest.TestCase):
         story = sample_story()
         with self.assertRaisesRegex(ValueError, "stories and estimates"):
             build_review_markdown("2026-07-15-001", [story], [])
+
+
+class SettingsDefaultTests(unittest.TestCase):
+    def test_settings_default_to_low_quality_six_scene_budget_images(self):
+        settings_path = Path(__file__).resolve().parents[1] / "config" / "settings.example.json"
+        settings = json.loads(settings_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(settings["min_scenes"], 6)
+        self.assertEqual(settings["max_scenes"], 6)
+        self.assertEqual(settings["openai"]["image_quality"], "low")
+
+        image_prices = settings["costs"]["image_usd_by_model_quality_size"]
+        self.assertEqual(image_prices["gpt-image-1-mini|low|1024x1536"], 0.006)
+        self.assertEqual(image_prices["gpt-image-2|low|1024x1536"], 0.005)
+        self.assertNotIn("gpt-image-2|medium|1024x1536", image_prices)
 
 
 if __name__ == "__main__":

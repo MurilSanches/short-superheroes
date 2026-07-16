@@ -39,6 +39,12 @@ class PromptTemplateTests(unittest.TestCase):
         self.assertIn("expand any script below 1300 characters", combined)
         self.assertIn("180 to 230 words", combined)
 
+    def test_story_system_prompt_requires_exactly_six_scenes(self):
+        prompt = (TEMPLATES_DIR / "story-system.md").read_text(encoding="utf-8").lower()
+
+        self.assertIn("exactly 6 scenes", prompt)
+        self.assertNotIn("6 to 8 scenes", prompt)
+
     def test_theme_prompts_request_varied_original_superhero_villain_seed(self):
         combined = "\n".join(
             [

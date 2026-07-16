@@ -343,7 +343,7 @@ def _story_response_format() -> dict:
             "character_bible": bible,
             "villain_profile": villain,
             "script": {"type": "string"},
-            "scenes": {"type": "array", "items": scene},
+            "scenes": {"type": "array", "items": scene, "minItems": 6, "maxItems": 6},
             "tiktok_title": {"type": "string"},
             "tiktok_description": {"type": "string"},
             "hashtags": string_array,

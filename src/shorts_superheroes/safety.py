@@ -49,6 +49,7 @@ MIN_TARGET_DURATION_SEC = 60
 MAX_TARGET_DURATION_SEC = 75
 MIN_SCRIPT_CHARS_FOR_60_SECONDS = 900
 LONG_SCRIPT_WARNING_CHARS = 1800
+REQUIRED_SCENE_COUNT = 6
 
 
 def _joined_story_text(story: StoryPackage) -> str:
@@ -81,7 +82,7 @@ def validate_story_package(story: StoryPackage) -> CheckResult:
     warnings: list[str] = []
     text = _joined_story_text(story)
 
-    if len(story.scenes) < 6 or len(story.scenes) > 8:
+    if len(story.scenes) != REQUIRED_SCENE_COUNT:
         errors.append("scene_count_out_of_range")
     if story.target_duration_sec < MIN_TARGET_DURATION_SEC or story.target_duration_sec > MAX_TARGET_DURATION_SEC:
         errors.append("duration_out_of_range")
