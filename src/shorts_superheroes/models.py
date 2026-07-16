@@ -133,6 +133,7 @@ class Batch:
     batch_id: str
     status: str
     image_model: str
+    theme_seed: str = ""
     review_mode: str = "full_validation"
     cost_estimates: list[dict] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -144,6 +145,7 @@ class Batch:
             batch_id=str(data["batch_id"]),
             status=str(data["status"]),
             image_model=str(data["image_model"]),
+            theme_seed=str(data.get("theme_seed", "")),
             review_mode=str(data.get("review_mode", "full_validation")),
             cost_estimates=[dict(item) for item in data.get("cost_estimates", [])],
             errors=[str(item) for item in data.get("errors", [])],

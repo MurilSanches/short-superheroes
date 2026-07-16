@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
+from datetime import date
 from pathlib import Path
 
 from shorts_superheroes.clients import (
@@ -11,10 +13,57 @@ from shorts_superheroes.clients import (
     ElevenLabsTtsClient,
     OpenAIImageClient,
     OpenAIStoryClient,
+    OpenAIThemeSeedClient,
 )
 from shorts_superheroes.env import load_dotenv
 from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile, load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch, write_batch
+
+
+DEFAULT_THEME_SEEDS = [
+    "clockwork library villain mystery with a patient original superhero",
+    "moonlit garden antagonist swaps every sign before bedtime",
+    "tiny cloud city hero solves a clever fog machine villain plan",
+    "underwater lantern hero outsmarts a coral maze trickster",
+    "sleepy train station superhero follows clues from a whispering map",
+    "rainbow observatory hero stops a star-stealing puzzle villain",
+    "cozy bakery superhero fixes a frosting compass sabotage",
+    "forest bridge hero uncovers a nonviolent shadow puppet scheme",
+]
+
+
+def _story_client(settings: dict, dry_run: bool):
+    return (
+        DryRunStoryClient()
+        if dry_run
+        else OpenAIStoryClient(os.environ["OPENAI_API_KEY"], settings["openai"]["text_model"])
+    )
+
+
+def _image_client(settings: dict, image_model: str, dry_run: bool):
+    return (
+        DryRunImageClient()
+        if dry_run
+        else OpenAIImageClient(
+            api_key=os.environ["OPENAI_API_KEY"],
+            model=image_model,
+            size=settings["openai"]["image_size"],
+            quality=settings["openai"]["image_quality"],
+        )
+    )
+
+
+def _tts_client(settings: dict, dry_run: bool):
+    return (
+        DryRunTtsClient()
+        if dry_run
+        else ElevenLabsTtsClient(
+            api_key=os.environ["ELEVENLABS_API_KEY"],
+            voice_id=settings["elevenlabs"]["voice_id"],
+            model_id=settings["elevenlabs"]["model_id"],
+            output_format=settings["elevenlabs"]["output_format"],
+        )
+    )
 
 
 def _sample_stories() -> list[StoryPackage]:
@@ -77,6 +126,39 @@ def _load_settings(path: Path) -> dict:
     return load_json(path)
 
 
+def _project_root_from_args(settings: dict, project_root: str | None) -> Path:
+    return Path(project_root or settings.get("project_root", "projects/shorts-superheroes"))
+
+
+def _next_batch_id(project_root: Path) -> str:
+    batches_dir = project_root / "batches"
+    today = date.today().isoformat()
+    existing_numbers = []
+
+    if batches_dir.exists():
+        for batch_dir in batches_dir.glob(f"{today}-*"):
+            suffix = batch_dir.name.removeprefix(f"{today}-")
+            if suffix.isdigit():
+                existing_numbers.append(int(suffix))
+
+    next_number = max(existing_numbers, default=0) + 1
+    return f"{today}-{next_number:03d}"
+
+
+def _theme_seed_from_args(theme_seed: str | None, project_root: Path, settings: dict, dry_run: bool) -> str:
+    if theme_seed and theme_seed.strip():
+        return theme_seed.strip()
+    if not dry_run:
+        templates_dir = project_root / "config" / "prompt-templates"
+        system_prompt = (templates_dir / "theme-system.md").read_text(encoding="utf-8")
+        user_prompt = (templates_dir / "theme-user.md").read_text(encoding="utf-8")
+        return OpenAIThemeSeedClient(
+            os.environ["OPENAI_API_KEY"],
+            settings["openai"]["text_model"],
+        ).generate_theme_seed(system_prompt, user_prompt)
+    return random.choice(DEFAULT_THEME_SEEDS)
+
+
 def main() -> int:
     load_dotenv()
     parser = argparse.ArgumentParser()
@@ -107,21 +189,23 @@ def main() -> int:
     render.add_argument("--batch-dir", required=True)
     render.add_argument("--dry-run", action="store_true")
 
+    full = subparsers.add_parser("run-full-batch")
+    full.add_argument("--batch-id", default=None)
+    full.add_argument("--project-root", default=None)
+    full.add_argument("--theme-seed", default=None)
+    full.add_argument("--image-model", default=None)
+    full.add_argument("--dry-run", action="store_true")
+
     args = parser.parse_args()
     settings = _load_settings(Path(args.settings))
 
     if args.command == "draft-batch":
-        story_client = (
-            DryRunStoryClient()
-            if args.dry_run
-            else OpenAIStoryClient(os.environ["OPENAI_API_KEY"], settings["openai"]["text_model"])
-        )
         batch_dir = draft_batch(
             Path(args.project_root),
             args.batch_id,
             args.theme_seed,
             settings,
-            story_client,
+            _story_client(settings, args.dry_run),
             args.image_model or settings["openai"]["image_model_default"],
         )
         print(batch_dir)
@@ -139,35 +223,37 @@ def main() -> int:
         return 0
 
     if args.command == "generate-images":
-        client = (
-            DryRunImageClient()
-            if args.dry_run
-            else OpenAIImageClient(
-                api_key=os.environ["OPENAI_API_KEY"],
-                model=settings["openai"]["image_model_default"],
-                size=settings["openai"]["image_size"],
-                quality=settings["openai"]["image_quality"],
-            )
-        )
+        client = _image_client(settings, settings["openai"]["image_model_default"], args.dry_run)
         generate_images(Path(args.batch_dir), client)
         return 0
 
     if args.command == "generate-audio":
-        client = (
-            DryRunTtsClient()
-            if args.dry_run
-            else ElevenLabsTtsClient(
-                api_key=os.environ["ELEVENLABS_API_KEY"],
-                voice_id=settings["elevenlabs"]["voice_id"],
-                model_id=settings["elevenlabs"]["model_id"],
-                output_format=settings["elevenlabs"]["output_format"],
-            )
-        )
-        generate_audio(Path(args.batch_dir), client)
+        generate_audio(Path(args.batch_dir), _tts_client(settings, args.dry_run))
         return 0
 
     if args.command == "render-batch":
         render_batch(Path(args.batch_dir), dry_run=args.dry_run)
+        return 0
+
+    if args.command == "run-full-batch":
+        image_model = args.image_model or settings["openai"]["image_model_default"]
+        project_root = _project_root_from_args(settings, args.project_root)
+        batch_id = args.batch_id or _next_batch_id(project_root)
+        theme_seed = _theme_seed_from_args(args.theme_seed, project_root, settings, args.dry_run)
+        batch_dir = draft_batch(
+            project_root,
+            batch_id,
+            theme_seed,
+            settings,
+            _story_client(settings, args.dry_run),
+            image_model,
+        )
+        generate_images(batch_dir, _image_client(settings, image_model, args.dry_run))
+        generate_audio(batch_dir, _tts_client(settings, args.dry_run))
+        render_batch(batch_dir, dry_run=args.dry_run)
+        batch = load_json(batch_dir / "batch.json")
+        for final_video_path in batch["final_video_paths"]:
+            print(final_video_path)
         return 0
 
     raise ValueError(args.command)

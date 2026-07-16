@@ -6,7 +6,14 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from shorts_superheroes.clients import DryRunImageClient, DryRunStoryClient, DryRunTtsClient, OpenAIStoryClient
+from shorts_superheroes.clients import (
+    DryRunImageClient,
+    DryRunStoryClient,
+    DryRunTtsClient,
+    ElevenLabsTtsClient,
+    OpenAIImageClient,
+    OpenAIStoryClient,
+)
 from shorts_superheroes.env import load_dotenv
 from shorts_superheroes.models import load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch
@@ -44,13 +51,31 @@ def run_stage(payload: dict) -> dict:
 
     batch_dir = Path(str(payload["batch_dir"]))
     if stage == "generate-images":
-        if not dry_run:
-            raise ValueError("HTTP worker real image generation will be enabled after CLI real-run validation")
-        generate_images(batch_dir, DryRunImageClient())
+        settings = load_json(Path(payload.get("settings", DEFAULT_SETTINGS_PATH)))
+        image_client = (
+            DryRunImageClient()
+            if dry_run
+            else OpenAIImageClient(
+                api_key=os.environ["OPENAI_API_KEY"],
+                model=str(payload.get("image_model", settings["openai"]["image_model_default"])),
+                size=settings["openai"]["image_size"],
+                quality=settings["openai"]["image_quality"],
+            )
+        )
+        generate_images(batch_dir, image_client)
     elif stage == "generate-audio":
-        if not dry_run:
-            raise ValueError("HTTP worker real audio generation will be enabled after CLI real-run validation")
-        generate_audio(batch_dir, DryRunTtsClient())
+        settings = load_json(Path(payload.get("settings", DEFAULT_SETTINGS_PATH)))
+        tts_client = (
+            DryRunTtsClient()
+            if dry_run
+            else ElevenLabsTtsClient(
+                api_key=os.environ["ELEVENLABS_API_KEY"],
+                voice_id=settings["elevenlabs"]["voice_id"],
+                model_id=settings["elevenlabs"]["model_id"],
+                output_format=settings["elevenlabs"]["output_format"],
+            )
+        )
+        generate_audio(batch_dir, tts_client)
     elif stage == "render-batch":
         render_batch(batch_dir, dry_run=dry_run)
     else:

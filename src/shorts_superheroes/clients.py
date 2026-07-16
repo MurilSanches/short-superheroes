@@ -64,6 +64,35 @@ class OpenAIStoryClient:
         return stories
 
 
+class OpenAIThemeSeedClient:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gpt-4.1-mini",
+        transport: JsonTransport = default_json_transport,
+    ) -> None:
+        self.api_key = api_key
+        self.model = model
+        self.transport = transport
+
+    def generate_theme_seed(self, system_prompt: str, user_prompt: str) -> str:
+        payload = {
+            "model": self.model,
+            "instructions": system_prompt,
+            "input": user_prompt,
+            "text": {"format": _theme_seed_response_format()},
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        result = self.transport("https://api.openai.com/v1/responses", headers, payload)
+        theme_seed = str(json.loads(_response_output_text(result))["theme_seed"]).strip()
+        if not theme_seed:
+            raise ValueError("OpenAI theme response returned an empty theme_seed")
+        return theme_seed
+
+
 class OpenAIImageClient:
     def __init__(
         self,
@@ -320,6 +349,26 @@ def _story_response_format() -> dict:
                     "items": story,
                     "minItems": 4,
                     "maxItems": 4,
+                }
+            },
+        },
+    }
+
+
+def _theme_seed_response_format() -> dict:
+    return {
+        "type": "json_schema",
+        "name": "theme_seed",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["theme_seed"],
+            "properties": {
+                "theme_seed": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 180,
                 }
             },
         },

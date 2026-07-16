@@ -17,7 +17,7 @@
             { "name": "worker_url", "value": "http://host.docker.internal:8765/run-stage" }
           ],
           "boolean": [
-            { "name": "dry_run", "value": true }
+            { "name": "dry_run", "value": false }
           ]
         },
         "options": {}

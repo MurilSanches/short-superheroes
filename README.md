@@ -31,6 +31,28 @@ notepad projects\shorts-superheroes\.env
 
 The CLI, local worker, and n8n importer load `projects/shorts-superheroes/.env` automatically. Existing shell environment variables take priority over `.env` values.
 
+## Full Batch
+
+Run the complete pipeline and print only the final MP4 paths:
+
+```powershell
+.\projects\shorts-superheroes\run-full-batch.ps1
+```
+
+To force a specific theme seed:
+
+```powershell
+.\projects\shorts-superheroes\run-full-batch.ps1 "original superhero bedtime mystery with a clever villain"
+```
+
+Dry-run test:
+
+```powershell
+.\projects\shorts-superheroes\run-full-batch.ps1 "audio and prompt smoke test" -DryRun
+```
+
+The wrapper sets `PYTHONPATH`, uses `config/settings.example.json`, and auto-generates the next `YYYY-MM-DD-###` batch id. When no theme is provided, real runs generate a varied original superhero/villain seed from `config/prompt-templates/theme-system.md` and `theme-user.md`; dry-runs use a local fallback seed. Optional overrides are available with `-BatchId`, `-ImageModel`, and `-Python`.
+
 ## MVP Stages
 
 1. Draft stories and review scripts/prompts.

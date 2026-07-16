@@ -27,6 +27,33 @@ class PromptTemplateTests(unittest.TestCase):
         self.assertIn("nonviolent resolution", prompt)
         self.assertIn("{{theme_seed}}", prompt)
 
+    def test_story_prompts_request_script_buffer_above_validation_minimum(self):
+        combined = "\n".join(
+            [
+                (TEMPLATES_DIR / "story-system.md").read_text(encoding="utf-8").lower(),
+                (TEMPLATES_DIR / "story-user.md").read_text(encoding="utf-8").lower(),
+            ]
+        )
+
+        self.assertIn("1300 to 1600 characters", combined)
+        self.assertIn("expand any script below 1300 characters", combined)
+        self.assertIn("180 to 230 words", combined)
+
+    def test_theme_prompts_request_varied_original_superhero_villain_seed(self):
+        combined = "\n".join(
+            [
+                (TEMPLATES_DIR / "theme-system.md").read_text(encoding="utf-8").lower(),
+                (TEMPLATES_DIR / "theme-user.md").read_text(encoding="utf-8").lower(),
+            ]
+        )
+
+        self.assertIn("theme_seed", combined)
+        self.assertIn("variety", combined)
+        self.assertIn("original superhero", combined)
+        self.assertIn("villain", combined)
+        self.assertIn("avoid repeating", combined)
+        self.assertIn("strict json", combined)
+
 
 if __name__ == "__main__":
     unittest.main()

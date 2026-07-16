@@ -14,10 +14,12 @@ from shorts_superheroes.clients import (
     ElevenLabsTtsClient,
     OpenAIImageClient,
     OpenAIStoryClient,
+    OpenAIThemeSeedClient,
 )
 from shorts_superheroes.media import build_render_command, render_video
 from shorts_superheroes.models import CharacterBible, Scene, StoryPackage, VillainProfile, load_json
 from shorts_superheroes.pipeline import draft_batch, generate_audio, generate_images, render_batch, write_batch
+from shorts_superheroes.cli import main as cli_main
 from shorts_superheroes.worker import run_stage
 
 
@@ -213,6 +215,27 @@ class ClientTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exactly 4 StoryPackage instances"):
             client.generate_stories("sharing ideas", "system", "user")
 
+    def test_openai_theme_seed_client_builds_request_and_parses_seed(self):
+        captured = {}
+
+        def fake_transport(url, headers, payload):
+            captured["url"] = url
+            captured["headers"] = headers
+            captured["payload"] = payload
+            return {"output_text": json.dumps({"theme_seed": "moon garden hero versus clockwork fog villain"})}
+
+        client = OpenAIThemeSeedClient(api_key="sk-test", model="gpt-4.1-mini", transport=fake_transport)
+
+        theme_seed = client.generate_theme_seed("Theme system prompt", "Theme user prompt")
+
+        self.assertEqual(theme_seed, "moon garden hero versus clockwork fog villain")
+        self.assertEqual(captured["url"], "https://api.openai.com/v1/responses")
+        self.assertEqual(captured["headers"]["Authorization"], "Bearer sk-test")
+        self.assertEqual(captured["payload"]["model"], "gpt-4.1-mini")
+        self.assertEqual(captured["payload"]["instructions"], "Theme system prompt")
+        self.assertEqual(captured["payload"]["input"], "Theme user prompt")
+        self.assertEqual(captured["payload"]["text"]["format"]["schema"]["required"], ["theme_seed"])
+
     def test_elevenlabs_tts_client_uses_transport_and_writes_audio(self):
         captured = {}
 
@@ -284,6 +307,26 @@ class MediaTests(unittest.TestCase):
             path = render_video([Path("scene-01.txt")], Path("voice.mp3"), output, scene_duration_sec=8, dry_run=True)
             self.assertEqual(path, output)
             self.assertIn("DRY RUN VIDEO", output.read_text(encoding="utf-8"))
+
+    def test_render_video_rejects_output_without_audio_stream(self):
+        render_result = SimpleNamespace(returncode=0, stderr="", stdout="")
+        probe_result = SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr=(
+                "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'final.mp4':\n"
+                "  Stream #0:0: Video: h264, yuv420p, 1080x1920\n"
+                "At least one output file must be specified\n"
+            ),
+        )
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch("shorts_superheroes.media.resolve_ffmpeg_executable", return_value="ffmpeg"),
+            patch("shorts_superheroes.media.subprocess.run", side_effect=[render_result, probe_result]),
+        ):
+            output = Path(tmp) / "final.mp4"
+            with self.assertRaisesRegex(RuntimeError, "missing audio stream"):
+                render_video([Path("scene-01.png")], Path("voice.mp3"), output, scene_duration_sec=8, dry_run=False)
 
 
 def pipeline_story(video_id: str = "video-01") -> StoryPackage:
@@ -451,6 +494,40 @@ class PipelineTests(unittest.TestCase):
             self.assertNotIn("{{theme_seed}}", captured["user_prompt"])
             self.assertEqual(load_json(batch_dir / "batch.json")["status"], "drafted")
 
+    def test_draft_batch_retries_story_generation_with_validation_feedback(self):
+        captured_user_prompts = []
+
+        class RetryingStoryClient:
+            def generate_stories(self, theme_seed, system_prompt, user_prompt):
+                del theme_seed, system_prompt
+                captured_user_prompts.append(user_prompt)
+                if len(captured_user_prompts) == 1:
+                    invalid = pipeline_story("video-01")
+                    invalid.script = "Too short."
+                    return [invalid] + [pipeline_story(f"video-{index:02d}") for index in range(2, 5)]
+                return [pipeline_story(f"video-{index:02d}") for index in range(1, 5)]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            templates = root / "config" / "prompt-templates"
+            templates.mkdir(parents=True)
+            (templates / "story-system.md").write_text("System prompt", encoding="utf-8")
+            (templates / "story-user.md").write_text("Theme seed: {{theme_seed}}", encoding="utf-8")
+
+            batch_dir = draft_batch(
+                root,
+                "2026-07-16-010",
+                "bedtime stars",
+                self.settings,
+                RetryingStoryClient(),
+                "gpt-image-1-mini",
+            )
+
+            self.assertEqual(load_json(batch_dir / "batch.json")["status"], "drafted")
+            self.assertEqual(len(captured_user_prompts), 2)
+            self.assertIn("Previous story batch failed validation", captured_user_prompts[1])
+            self.assertIn("script_too_short_for_60_seconds", captured_user_prompts[1])
+
 
     def test_draft_batch_with_dry_run_story_client_creates_four_story_batch(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -527,6 +604,88 @@ class WorkerTests(unittest.TestCase):
             self.assertTrue((batch_dir / "review.md").is_file())
             self.assertEqual(load_json(batch_dir / "batch.json")["status"], "drafted")
 
+    def test_run_stage_real_generate_images_uses_openai_image_client(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "openai": {
+                            "image_model_default": "gpt-image-1-mini",
+                            "image_size": "1024x1536",
+                            "image_quality": "medium",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            batch_dir = root / "batches" / "2026-07-15-008"
+
+            with (
+                patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}),
+                patch("shorts_superheroes.worker.OpenAIImageClient") as client_type,
+                patch("shorts_superheroes.worker.generate_images") as generate,
+            ):
+                result = run_stage(
+                    {
+                        "stage": "generate-images",
+                        "batch_dir": str(batch_dir),
+                        "settings": str(settings_path),
+                        "dry_run": False,
+                    }
+                )
+
+            client_type.assert_called_once_with(
+                api_key="sk-test",
+                model="gpt-image-1-mini",
+                size="1024x1536",
+                quality="medium",
+            )
+            generate.assert_called_once_with(batch_dir, client_type.return_value)
+            self.assertEqual(result, {"ok": True, "stage": "generate-images", "batch_dir": str(batch_dir)})
+
+    def test_run_stage_real_generate_audio_uses_elevenlabs_client(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "elevenlabs": {
+                            "voice_id": "voice-123",
+                            "model_id": "eleven_multilingual_v2",
+                            "output_format": "mp3_44100_128",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            batch_dir = root / "batches" / "2026-07-15-009"
+
+            with (
+                patch.dict(os.environ, {"ELEVENLABS_API_KEY": "eleven-test"}),
+                patch("shorts_superheroes.worker.ElevenLabsTtsClient") as client_type,
+                patch("shorts_superheroes.worker.generate_audio") as generate,
+            ):
+                result = run_stage(
+                    {
+                        "stage": "generate-audio",
+                        "batch_dir": str(batch_dir),
+                        "settings": str(settings_path),
+                        "dry_run": False,
+                    }
+                )
+
+            client_type.assert_called_once_with(
+                api_key="eleven-test",
+                voice_id="voice-123",
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128",
+            )
+            generate.assert_called_once_with(batch_dir, client_type.return_value)
+            self.assertEqual(result, {"ok": True, "stage": "generate-audio", "batch_dir": str(batch_dir)})
+
     def test_run_stage_real_draft_uses_openai_story_client(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -562,6 +721,132 @@ class WorkerTests(unittest.TestCase):
             client_type.assert_called_once_with(api_key="sk-test", model="gpt-4.1-mini")
             draft.assert_called_once()
             self.assertEqual(result, {"ok": True, "stage": "draft-batch", "batch_dir": str(batch_dir)})
+
+
+class CliTests(unittest.TestCase):
+    def test_run_full_batch_dry_run_prints_final_video_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            templates = root / "config" / "prompt-templates"
+            templates.mkdir(parents=True)
+            (templates / "story-system.md").write_text("System prompt", encoding="utf-8")
+            (templates / "story-user.md").write_text("Theme: {{theme_seed}}", encoding="utf-8")
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "video_count": 4,
+                        "review_mode": "full_validation",
+                        "openai": {
+                            "text_model": "gpt-4.1-mini",
+                            "image_model_default": "gpt-image-1-mini",
+                            "image_size": "1024x1536",
+                            "image_quality": "medium",
+                        },
+                        "elevenlabs": {
+                            "voice_id": "voice-123",
+                            "model_id": "eleven_flash_v2_5",
+                            "output_format": "mp3_44100_128",
+                        },
+                        "costs": {
+                            "text_generation_usd_per_batch": 0.02,
+                            "image_usd_by_model_quality_size": {
+                                "gpt-image-1-mini|medium|1024x1536": 0.015
+                            },
+                            "elevenlabs_flash_turbo_usd_per_1000_chars": 0.05,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            argv = [
+                "shorts_superheroes.cli",
+                "--settings",
+                str(settings_path),
+                "run-full-batch",
+                "--batch-id",
+                "2026-07-16-cli-test",
+                "--project-root",
+                str(root),
+                "--theme-seed",
+                "bedtime star mystery",
+                "--dry-run",
+            ]
+
+            with (
+                patch.object(sys, "argv", argv),
+                patch("builtins.print") as print_call,
+            ):
+                exit_code = cli_main()
+
+            self.assertEqual(exit_code, 0)
+            printed_paths = [call.args[0] for call in print_call.call_args_list]
+            self.assertEqual(len(printed_paths), 4)
+            for index, printed_path in enumerate(printed_paths, start=1):
+                self.assertTrue(printed_path.endswith(f"video-{index:02d}.mp4"))
+                self.assertTrue(Path(printed_path).is_file())
+
+    def test_run_full_batch_accepts_no_theme_with_generated_batch_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            templates = root / "config" / "prompt-templates"
+            templates.mkdir(parents=True)
+            (templates / "story-system.md").write_text("System prompt", encoding="utf-8")
+            (templates / "story-user.md").write_text("Theme: {{theme_seed}}", encoding="utf-8")
+            settings_path = root / "settings.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "project_root": str(root),
+                        "video_count": 4,
+                        "review_mode": "full_validation",
+                        "openai": {
+                            "text_model": "gpt-4.1-mini",
+                            "image_model_default": "gpt-image-1-mini",
+                            "image_size": "1024x1536",
+                            "image_quality": "medium",
+                        },
+                        "elevenlabs": {
+                            "voice_id": "voice-123",
+                            "model_id": "eleven_flash_v2_5",
+                            "output_format": "mp3_44100_128",
+                        },
+                        "costs": {
+                            "text_generation_usd_per_batch": 0.02,
+                            "image_usd_by_model_quality_size": {
+                                "gpt-image-1-mini|medium|1024x1536": 0.015
+                            },
+                            "elevenlabs_flash_turbo_usd_per_1000_chars": 0.05,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            argv = [
+                "shorts_superheroes.cli",
+                "--settings",
+                str(settings_path),
+                "run-full-batch",
+                "--dry-run",
+            ]
+
+            with (
+                patch.object(sys, "argv", argv),
+                patch("shorts_superheroes.cli.date") as date_type,
+                patch("shorts_superheroes.cli.random.choice", return_value="clockwork library villain mystery"),
+                patch("builtins.print") as print_call,
+            ):
+                date_type.today.return_value.isoformat.return_value = "2026-07-16"
+                exit_code = cli_main()
+
+            self.assertEqual(exit_code, 0)
+            batch_dir = root / "batches" / "2026-07-16-001"
+            batch = load_json(batch_dir / "batch.json")
+            self.assertEqual(batch["theme_seed"], "clockwork library villain mystery")
+            printed_paths = [call.args[0] for call in print_call.call_args_list]
+            self.assertEqual(len(printed_paths), 4)
 
 
 if __name__ == "__main__":

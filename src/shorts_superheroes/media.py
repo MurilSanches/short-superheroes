@@ -88,4 +88,13 @@ def render_video(
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {completed.stderr[-2000:]}")
+    _ensure_rendered_video_has_audio(output_path)
     return output_path
+
+
+def _ensure_rendered_video_has_audio(output_path: Path) -> None:
+    command = [resolve_ffmpeg_executable(), "-hide_banner", "-i", str(output_path)]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    probe_text = f"{completed.stdout}\n{completed.stderr}"
+    if "Audio:" not in probe_text:
+        raise RuntimeError(f"rendered video missing audio stream: {output_path}")
